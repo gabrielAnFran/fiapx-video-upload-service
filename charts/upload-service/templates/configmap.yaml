@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-upload-service-config
+  labels:
+    app.kubernetes.io/name: upload-service
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  UPLOAD_PORT: {{ .Values.env.UPLOAD_PORT | quote }}
+  UPLOAD_DISPATCH_INTERVAL_MS: {{ .Values.env.UPLOAD_DISPATCH_INTERVAL_MS | quote }}
+  MINIO_ENDPOINT: {{ .Values.env.MINIO_ENDPOINT | quote }}
+  MINIO_BUCKET: {{ .Values.env.MINIO_BUCKET | quote }}
+  MINIO_USE_SSL: {{ .Values.env.MINIO_USE_SSL | quote }}

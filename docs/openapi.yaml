@@ -1,0 +1,288 @@
+openapi: 3.0.3
+info:
+  title: Video Upload Service API
+  description: Microsservico de upload de video, autenticacao e listagem/download de status do sistema FIAP X de processamento de video.
+  version: "0.1.0"
+servers:
+  - url: /api/v1
+paths:
+  /auth/register:
+    post:
+      summary: Registra um novo usuario
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Usuario criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Requisicao invalida
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Email ja registrado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /auth/login:
+    post:
+      summary: Autentica um usuario e retorna um JWT
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login bem sucedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Credenciais invalidas
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /videos:
+    post:
+      summary: Envia um novo video para processamento assincrono
+      operationId: uploadVideo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [video]
+              properties:
+                video:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Video recebido, processamento assincrono iniciado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadVideoResponse'
+        '400':
+          description: Campo "video" ausente ou invalido
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Nao autenticado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      summary: Lista os videos do usuario autenticado (paginacao por cursor)
+      operationId: listVideos
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/VideoStatus'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de videos do usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoListResponse'
+        '400':
+          description: Parametros de query invalidos
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Nao autenticado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /videos/{id}/download:
+    get:
+      summary: Emite uma URL presignada de download para o zip de frames de um video concluido
+      operationId: getDownloadURL
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: URL de download emitida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadURLResponse'
+        '400':
+          description: Video ainda nao esta pronto para download
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Video pertence a outro usuario
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Video nao encontrado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    VideoStatus:
+      type: string
+      enum:
+        - UPLOADED
+        - PROCESSING
+        - COMPLETED
+        - FAILED
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    RegisterResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+
+    UploadVideoResponse:
+      type: object
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/VideoStatus'
+
+    VideoResponse:
+      type: object
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/VideoStatus'
+        original_filename:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        failed_at:
+          type: string
+          format: date-time
+        error_message:
+          type: string
+
+    VideoListResponse:
+      type: object
+      properties:
+        videos:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoResponse'
+        next_cursor:
+          type: string
+
+    DownloadURLResponse:
+      type: object
+      properties:
+        download_url:
+          type: string
+
+    Problem:
+      type: object
+      description: Corpo de erro no formato RFC 7807 (problem+json)
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
