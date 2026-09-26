@@ -58,7 +58,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	s3Client, err := storage.NewS3Client(ctx, cfg.MinioEndpoint, cfg.MinioAccessKey, cfg.MinioSecretKey, cfg.MinioBucket, cfg.MinioUseSSL)
+	s3Client, err := storage.NewS3Client(ctx, cfg.MinioEndpoint, cfg.MinioPublicEndpoint, cfg.MinioAccessKey, cfg.MinioSecretKey, cfg.MinioBucket, cfg.MinioUseSSL)
 	if err != nil {
 		slog.Error("failed to build storage client", "error", err)
 		os.Exit(1)

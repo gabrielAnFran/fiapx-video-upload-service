@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -65,6 +66,7 @@ func (h *VideoHandler) UploadVideo(c *gin.Context) {
 
 	video, err := h.uploadVideo.UploadVideo(c.Request.Context(), userID, fileHeader.Filename, contentType, fileHeader.Size, file)
 	if err != nil {
+		slog.Error("upload video failed", "error", err, "user_id", userID)
 		problem(c, http.StatusInternalServerError, "Internal Server Error", "failed to upload video")
 		return
 	}
