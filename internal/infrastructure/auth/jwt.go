@@ -10,7 +10,7 @@ import (
 // ErrInvalidToken is returned when token validation fails.
 var ErrInvalidToken = errors.New("invalid token")
 
-const tokenIssuer = "fiapx-video-upload-service"
+const tokenIssuer = "fiapx-video-upload-service" //nolint:gosec // JWT issuer name, not a credential
 const tokenTTL = 24 * time.Hour
 
 // Claims represents the JWT claims structure issued by this service.
