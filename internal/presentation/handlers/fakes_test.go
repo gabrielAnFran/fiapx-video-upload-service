@@ -1,7 +1,8 @@
-package usecases
+package handlers
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync"
 	"time"
@@ -11,8 +12,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// fakeUserRepository is a simple in-memory implementation of
-// repositories.UserRepository for unit tests.
+// errUnexpected is a generic sentinel used across handler tests to simulate
+// an unexpected repository/storage failure that should surface as a 500.
+var errUnexpected = errors.New("unexpected failure")
+
+// fakeUserRepository is an in-memory repositories.UserRepository, mirroring
+// the fake used by the usecases package tests.
 type fakeUserRepository struct {
 	mu        sync.Mutex
 	users     map[uuid.UUID]entities.User
@@ -62,8 +67,7 @@ func (f *fakeUserRepository) FindByID(_ context.Context, id uuid.UUID) (*entitie
 	return &u, nil
 }
 
-// fakeVideoRepository is a simple in-memory implementation of
-// repositories.VideoRepository for unit tests.
+// fakeVideoRepository is an in-memory repositories.VideoRepository.
 type fakeVideoRepository struct {
 	mu         sync.Mutex
 	videos     map[uuid.UUID]entities.Video
@@ -71,7 +75,6 @@ type fakeVideoRepository struct {
 	saveErr    error
 	listErr    error
 	nextCursor string
-	lastFilter repositories.VideoFilter
 }
 
 func newFakeVideoRepository() *fakeVideoRepository {
@@ -104,7 +107,6 @@ func (f *fakeVideoRepository) FindByID(_ context.Context, id uuid.UUID) (*entiti
 func (f *fakeVideoRepository) List(_ context.Context, filter repositories.VideoFilter) ([]entities.Video, string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.lastFilter = filter
 	if f.listErr != nil {
 		return nil, "", f.listErr
 	}
@@ -117,31 +119,7 @@ func (f *fakeVideoRepository) List(_ context.Context, filter repositories.VideoF
 	return out, f.nextCursor, nil
 }
 
-// fakeProcessedEventRepository is an in-memory ProcessedEventRepository.
-type fakeProcessedEventRepository struct {
-	mu        sync.Mutex
-	processed map[uuid.UUID]bool
-}
-
-func newFakeProcessedEventRepository() *fakeProcessedEventRepository {
-	return &fakeProcessedEventRepository{processed: map[uuid.UUID]bool{}}
-}
-
-func (f *fakeProcessedEventRepository) IsProcessed(_ context.Context, eventID uuid.UUID) (bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.processed[eventID], nil
-}
-
-func (f *fakeProcessedEventRepository) MarkProcessed(_ context.Context, eventID uuid.UUID) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.processed[eventID] = true
-	return nil
-}
-
-// fakeUploader is an in-memory Uploader used to test UploadVideo without a
-// real MinIO/S3 backend.
+// fakeUploader is an in-memory usecases.Uploader.
 type fakeUploader struct {
 	mu        sync.Mutex
 	uploaded  map[string][]byte
@@ -166,8 +144,7 @@ func (f *fakeUploader) Upload(_ context.Context, key string, body io.Reader, _ s
 	return nil
 }
 
-// fakePresigner is an in-memory Presigner used to test GetDownloadURL
-// without a real MinIO/S3 backend.
+// fakePresigner is an in-memory usecases.Presigner.
 type fakePresigner struct {
 	presignErr error
 }
